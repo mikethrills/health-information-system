@@ -1,0 +1,117 @@
+import { render, screen, waitFor } from "@testing-library/react"
+import { BrowserRouter } from "react-router-dom"
+import Dashboard from "../pages/Dashboard"
+import { DataProvider } from "../context/DataContext"
+import * as api from "../api/apiService"
+
+// Mock the API service
+jest.mock("../api/apiService", () => ({
+  getClients: jest.fn(),
+  getPrograms: jest.fn(),
+  getEnrollments: jest.fn(),
+  convertClientFromApi: jest.fn((client) => client),
+  convertProgramFromApi: jest.fn((program) => program),
+  convertEnrollmentFromApi: jest.fn((enrollment) => enrollment),
+}))
+
+const mockClients = [
+  {
+    id: "1",
+    firstName: "John",
+    lastName: "Doe",
+    email: "john@example.com",
+    createdAt: "2023-01-01T00:00:00Z",
+  },
+]
+
+const mockPrograms = [
+  {
+    id: "1",
+    name: "Test Program",
+    description: "Test Description",
+    createdAt: "2023-01-01T00:00:00Z",
+  },
+]
+
+const mockEnrollments = [
+  {
+    id: "1",
+    clientId: "1",
+    programId: "1",
+    enrollmentDate: "2023-01-01",
+    status: "active",
+  },
+]
+
+describe("Dashboard Component", () => {
+  beforeEach(() => {
+    // Setup mocks
+    ;(api.getClients as jest.Mock).mockResolvedValue(mockClients)
+    ;(api.getPrograms as jest.Mock).mockResolvedValue(mockPrograms)
+    ;(api.getEnrollments as jest.Mock).mockResolvedValue(mockEnrollments)
+  })
+
+  afterEach(() => {
+    jest.clearAllMocks()
+  })
+
+  test("renders loading state initially", () => {
+    render(
+      <BrowserRouter>
+        <DataProvider>
+          <Dashboard />
+        </DataProvider>
+      </BrowserRouter>,
+    )
+
+    expect(screen.getByText(/Loading data/i)).toBeInTheDocument()
+  })
+
+  test("renders dashboard with data after loading", async () => {
+    render(
+      <BrowserRouter>
+        <DataProvider>
+          <Dashboard />
+        </DataProvider>
+      </BrowserRouter>,
+    )
+
+    // Wait for loading to complete
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading data/i)).not.toBeInTheDocument()
+    })
+
+    // Check if stats are displayed
+    expect(screen.getByText(/Total Clients/i)).toBeInTheDocument()
+    expect(screen.getByText(/Health Programs/i)).toBeInTheDocument()
+    expect(screen.getByText(/Enrollments/i)).toBeInTheDocument()
+
+    // Check if quick actions are displayed
+    expect(screen.getByText(/Register New Client/i)).toBeInTheDocument()
+    expect(screen.getByText(/Create New Program/i)).toBeInTheDocument()
+    expect(screen.getByText(/New Enrollment/i)).toBeInTheDocument()
+
+    // Check if recent data is displayed
+    expect(screen.getByText(/Recent Clients/i)).toBeInTheDocument()
+    expect(screen.getByText(/Recent Programs/i)).toBeInTheDocument()
+    expect(screen.getByText(/John Doe/i)).toBeInTheDocument()
+    expect(screen.getByText(/Test Program/i)).toBeInTheDocument()
+  })
+
+  test("API calls are made on component mount", async () => {
+    render(
+      <BrowserRouter>
+        <DataProvider>
+          <Dashboard />
+        </DataProvider>
+      </BrowserRouter>,
+    )
+
+    await waitFor(() => {
+      expect(api.getClients).toHaveBeenCalled()
+      expect(api.getPrograms).toHaveBeenCalled()
+      expect(api.getEnrollments).toHaveBeenCalled()
+    })
+  })
+})
+
